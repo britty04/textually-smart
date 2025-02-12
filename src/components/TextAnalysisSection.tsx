@@ -65,8 +65,12 @@ const TextAnalysisSection = () => {
       // AI Detection
       const classifier = await pipeline("text-classification", "onnx-community/bert-base-cased");
       const aiResult = await classifier(text);
-      // Extract score from the first result's label score
-      const aiScore = Array.isArray(aiResult) ? aiResult[0]?.label === "LABEL_1" ? aiResult[0]?.score : 0 : 0;
+      // Extract score from the first result based on pipeline output structure
+      let aiScore = 0;
+      if (Array.isArray(aiResult)) {
+        const firstResult = aiResult[0] as { [key: string]: any };
+        aiScore = firstResult?.sequence?.score || 0;
+      }
 
       // Text Humanization using Natural.js
       const tokenizer = new natural.WordTokenizer();
@@ -97,7 +101,8 @@ const TextAnalysisSection = () => {
       const humanized = humanizedTokens.join(' ');
 
       // Basic Plagiarism Check with proper NGrams parameters
-      const keywords = natural.NGrams.ngrams(text.split(' '), 3)
+      const words = text.split(' ');
+      const keywords = natural.NGrams.ngrams(words, 3, '', '')
         .map(ngram => ngram.join(' '));
 
       // Rephrasing using different sentence structures
