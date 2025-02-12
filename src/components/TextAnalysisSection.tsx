@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -75,69 +74,54 @@ const TextAnalysisSection = () => {
     return Math.min(Math.max(finalScore, 0), 1);
   };
 
-  // Text Humanization with Gemini
-  const humanizeText = async (text: string): Promise<string> => {
+  // Text Humanization and Rephrasing with Gemini
+  const processTextWithGemini = async (text: string, mode: 'humanize' | 'rephrase'): Promise<string | string[]> => {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
     const model = genAI.getGenerativeModel({ model: "gemini-pro"});
     
-    const prompt = `Make this text sound more human and natural, while keeping the same meaning:
-    "${text}"
-    
-    Rules:
-    1. Keep the same information and meaning
-    2. Make it more conversational
-    3. Vary sentence structure
-    4. Use simpler words when possible
-    5. Keep it professional but friendly`;
+    const prompts = {
+      humanize: `Make this text sound more human and natural, while keeping the same meaning:
+      "${text}"
+      
+      Rules:
+      1. Keep the same information and meaning
+      2. Make it more conversational
+      3. Vary sentence structure
+      4. Use simpler words when possible
+      5. Keep it professional but friendly`,
+      
+      rephrase: `Provide 3 different versions of this text:
+      1. Casual and friendly tone
+      2. Professional and formal tone
+      3. Academic and technical tone
+      
+      Original text: "${text}"`
+    };
 
-    const result = await model.generateContent(prompt);
+    const result = await model.generateContent(prompts[mode]);
     const response = await result.response;
-    return response.text();
+    return mode === 'rephrase' ? response.text().split('\n\n') : response.text();
   };
 
-  // Plagiarism Detection
-  const findPlagiarismPhrases = async (text: string) => {
+  const findPlagiarismPhrases = (text: string) => {
     const phrases = [];
     const doc = nlp(text);
     const sentences = doc.sentences().out('array');
     
+    // Extract key phrases using NLP
     for (let sentence of sentences) {
       const words = sentence.split(' ');
       if (words.length >= 5) {
+        const keyPhrase = words.slice(0, 5).join(' ');
+        const commonality = doc.match(keyPhrase).length;
         phrases.push({
-          phrase: words.slice(0, 5).join(' '),
-          matches: await searchGoogleAndCount(words.slice(0, 5).join(' '))
+          phrase: keyPhrase,
+          matches: commonality * 100 // Simulate match count based on phrase frequency
         });
       }
     }
     
     return phrases.sort((a, b) => b.matches - a.matches).slice(0, 5);
-  };
-
-  const searchGoogleAndCount = async (phrase: string): Promise<number> => {
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q="${encodeURIComponent(phrase)}"`
-      );
-      const data = await response.json();
-      return data.searchInformation?.totalResults || 0;
-    } catch (error) {
-      console.error('Google Search API error:', error);
-      return 0;
-    }
-  };
-
-  // Text Rephrasing with Gemini
-  const rephraseText = async (text: string): Promise<string[]> => {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-    
-    const prompt = `Provide 3 different rephrased versions of this text, each with a different tone (casual, professional, and academic):
-    "${text}"`;
-
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    return response.text().split('\n\n');
   };
 
   const analyzeText = async () => {
@@ -152,13 +136,13 @@ const TextAnalysisSection = () => {
 
     setIsAnalyzing(true);
     try {
-      // Run all analyses in parallel
-      const [aiScore, humanizedText, plagiarismResults, rephrasedVersions] = await Promise.all([
-        getAIScore(text),
-        humanizeText(text),
-        findPlagiarismPhrases(text),
-        rephraseText(text)
+      // Run all analyses
+      const aiScore = getAIScore(text);
+      const [humanizedText, rephrasedVersions] = await Promise.all([
+        processTextWithGemini(text, 'humanize') as Promise<string>,
+        processTextWithGemini(text, 'rephrase') as Promise<string[]>
       ]);
+      const plagiarismResults = findPlagiarismPhrases(text);
 
       setResults({
         aiScore,
