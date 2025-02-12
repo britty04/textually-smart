@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, RefreshCcw, Wand2, Upload, Download, Sun, Moon } from "lucide-react";
+import { AlertCircle, RefreshCcw, Wand2, Upload, Download } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -12,18 +12,18 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { pipeline } from "@huggingface/transformers";
+import nlp from 'compromise';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const TextAnalysisSection = () => {
   const [text, setText] = useState("");
   const [results, setResults] = useState<{
     aiScore?: number;
     humanizedText?: string;
-    plagiarismResults?: string[];
+    plagiarismResults?: Array<{ phrase: string; matches: number }>;
     rephrasedVersions?: string[];
   }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { toast } = useToast();
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,61 +49,95 @@ const TextAnalysisSection = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Simple text analysis functions
+  // Advanced AI Detection using Compromise.js
   const getAIScore = (text: string): number => {
-    // Basic heuristics for AI detection
-    const patterns = [
-      /\b(therefore|thus|hence|consequently)\b/gi,
-      /\b(furthermore|moreover|additionally)\b/gi,
-      /\b(however|nevertheless|nonetheless)\b/gi,
-      /\b(in conclusion|to summarize|in summary)\b/gi
-    ];
+    const doc = nlp(text);
     
-    const matches = patterns.reduce((count, pattern) => {
-      const matches = text.match(pattern);
-      return count + (matches ? matches.length : 0);
-    }, 0);
+    // Analyze sentence complexity
+    const sentenceLength = doc.sentences().length;
+    const wordCount = doc.terms().length;
+    const avgWordsPerSentence = wordCount / sentenceLength;
     
-    // Normalize score between 0 and 1
-    return Math.min(matches / 5, 1);
+    // Detect formal language patterns
+    const formalWords = doc.match('(therefore|hence|thus|consequently|furthermore|moreover)').length;
+    const passiveVoice = doc.match('#Noun (was|were|has been|have been) #Verb').length;
+    
+    // Check for repetitive structures
+    const uniqueWords = new Set(doc.terms().out('array')).size;
+    const repetitionScore = 1 - (uniqueWords / wordCount);
+    
+    // Calculate final score
+    const complexityScore = Math.min((avgWordsPerSentence / 20), 1);
+    const formalityScore = Math.min((formalWords / sentenceLength) * 2, 1);
+    const passiveScore = Math.min((passiveVoice / sentenceLength) * 2, 1);
+    
+    const finalScore = (complexityScore + formalityScore + passiveScore + repetitionScore) / 4;
+    return Math.min(Math.max(finalScore, 0), 1);
   };
 
-  const humanizeText = (text: string): string => {
-    const sentences = text.split(/[.!?]+/).filter(Boolean);
-    return sentences.map(sentence => {
-      // Simple transformations
-      return sentence
-        .trim()
-        .replace(/\b(utilize)\b/g, 'use')
-        .replace(/\b(implement)\b/g, 'use')
-        .replace(/\b(facilitate)\b/g, 'help')
-        .replace(/\b(leverage)\b/g, 'use');
-    }).join('. ') + '.';
+  // Text Humanization with Gemini
+  const humanizeText = async (text: string): Promise<string> => {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+    
+    const prompt = `Make this text sound more human and natural, while keeping the same meaning:
+    "${text}"
+    
+    Rules:
+    1. Keep the same information and meaning
+    2. Make it more conversational
+    3. Vary sentence structure
+    4. Use simpler words when possible
+    5. Keep it professional but friendly`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
   };
 
-  const findPlagiarismPhrases = (text: string): string[] => {
-    const words = text.split(/\s+/);
-    const phrases: string[] = [];
+  // Plagiarism Detection
+  const findPlagiarismPhrases = async (text: string) => {
+    const phrases = [];
+    const doc = nlp(text);
+    const sentences = doc.sentences().out('array');
     
-    // Create 3-word phrases
-    for (let i = 0; i < words.length - 2; i++) {
-      phrases.push(words.slice(i, i + 3).join(' '));
+    for (let sentence of sentences) {
+      const words = sentence.split(' ');
+      if (words.length >= 5) {
+        phrases.push({
+          phrase: words.slice(0, 5).join(' '),
+          matches: await searchGoogleAndCount(words.slice(0, 5).join(' '))
+        });
+      }
     }
     
-    return phrases.slice(0, 5); // Return top 5 phrases
+    return phrases.sort((a, b) => b.matches - a.matches).slice(0, 5);
   };
 
-  const rephraseText = (text: string): string[] => {
-    const sentences = text.split(/[.!?]+/).filter(Boolean);
-    return sentences.map(sentence => {
-      // Simple rephrasing by moving words around
-      const words = sentence.trim().split(/\s+/);
-      if (words.length > 3) {
-        // Move the first word to the end
-        words.push(words.shift() as string);
-      }
-      return words.join(' ');
-    });
+  const searchGoogleAndCount = async (phrase: string): Promise<number> => {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_CSE_ID}&q="${encodeURIComponent(phrase)}"`
+      );
+      const data = await response.json();
+      return data.searchInformation?.totalResults || 0;
+    } catch (error) {
+      console.error('Google Search API error:', error);
+      return 0;
+    }
+  };
+
+  // Text Rephrasing with Gemini
+  const rephraseText = async (text: string): Promise<string[]> => {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+    
+    const prompt = `Provide 3 different rephrased versions of this text, each with a different tone (casual, professional, and academic):
+    "${text}"`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text().split('\n\n');
   };
 
   const analyzeText = async () => {
@@ -118,17 +152,13 @@ const TextAnalysisSection = () => {
 
     setIsAnalyzing(true);
     try {
-      // AI Detection
-      const aiScore = getAIScore(text);
-
-      // Text Humanization
-      const humanizedText = humanizeText(text);
-
-      // Plagiarism Check
-      const plagiarismResults = findPlagiarismPhrases(text);
-
-      // Rephrasing
-      const rephrasedVersions = rephraseText(text);
+      // Run all analyses in parallel
+      const [aiScore, humanizedText, plagiarismResults, rephrasedVersions] = await Promise.all([
+        getAIScore(text),
+        humanizeText(text),
+        findPlagiarismPhrases(text),
+        rephraseText(text)
+      ]);
 
       setResults({
         aiScore,
@@ -153,16 +183,8 @@ const TextAnalysisSection = () => {
   };
 
   return (
-    <Card className={`w-full max-w-4xl p-6 glass card-shadow ${isDarkMode ? 'bg-gray-900 text-white' : ''}`}>
+    <Card className="w-full max-w-4xl p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100">
       <div className="flex justify-end mb-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsDarkMode(!isDarkMode)}
-          className="mr-2"
-        >
-          {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        </Button>
         <label className="cursor-pointer">
           <input
             type="file"
@@ -286,10 +308,15 @@ const TextAnalysisSection = () => {
             <h4 className="font-medium mb-2">Plagiarism Check Results</h4>
             {results.plagiarismResults?.length ? (
               <div className="space-y-2">
-                <p className="text-sm mb-2">Key phrases checked:</p>
+                <p className="text-sm mb-2">Potential matches found:</p>
                 <ul className="list-disc list-inside text-sm">
-                  {results.plagiarismResults.slice(0, 5).map((phrase, index) => (
-                    <li key={index}>{phrase}</li>
+                  {results.plagiarismResults.map((result, index) => (
+                    <li key={index} className="flex items-center justify-between">
+                      <span>{result.phrase}</span>
+                      <span className={`ml-2 ${result.matches > 1000 ? 'text-red-500' : 'text-yellow-500'}`}>
+                        {result.matches.toLocaleString()} matches
+                      </span>
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -303,18 +330,21 @@ const TextAnalysisSection = () => {
 
         <TabsContent value="rephrase" className="mt-6">
           <Card className="p-4">
-            <h4 className="font-medium mb-2">Rephrased Text</h4>
+            <h4 className="font-medium mb-2">Rephrased Versions</h4>
             {results.rephrasedVersions?.length ? (
               <div className="space-y-4">
                 {results.rephrasedVersions.map((version, index) => (
-                  <div key={index} className="p-2 bg-gray-50 rounded">
+                  <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div className="font-medium text-xs text-gray-500 mb-1">
+                      {index === 0 ? 'Casual Tone' : index === 1 ? 'Professional Tone' : 'Academic Tone'}
+                    </div>
                     <p className="text-sm">{version}</p>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Rephrased version will appear here.
+                Rephrased versions will appear here.
               </p>
             )}
           </Card>
