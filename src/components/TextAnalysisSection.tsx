@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,11 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import nlp from 'compromise';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { supabase } from "@/integrations/supabase/client";
 
 const TextAnalysisSection = () => {
   const [text, setText] = useState("");
+  const [geminiKey, setGeminiKey] = useState<string>("");
   const [results, setResults] = useState<{
     aiScore?: number;
     humanizedText?: string;
@@ -24,6 +26,32 @@ const TextAnalysisSection = () => {
   }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchGeminiKey = async () => {
+      const { data: { GEMINI_API_KEY }, error } = await supabase
+        .from('secrets')
+        .select('value')
+        .eq('name', 'GEMINI_API_KEY')
+        .single();
+      
+      if (error) {
+        console.error('Error fetching Gemini API key:', error);
+        toast({
+          title: "Configuration Error",
+          description: "Could not load API configuration. Some features might not work.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (GEMINI_API_KEY) {
+        setGeminiKey(GEMINI_API_KEY);
+      }
+    };
+
+    fetchGeminiKey();
+  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -48,24 +76,19 @@ const TextAnalysisSection = () => {
     URL.revokeObjectURL(url);
   };
 
-  // Advanced AI Detection using Compromise.js
   const getAIScore = (text: string): number => {
     const doc = nlp(text);
     
-    // Analyze sentence complexity
     const sentenceLength = doc.sentences().length;
     const wordCount = doc.terms().length;
     const avgWordsPerSentence = wordCount / sentenceLength;
     
-    // Detect formal language patterns
     const formalWords = doc.match('(therefore|hence|thus|consequently|furthermore|moreover)').length;
     const passiveVoice = doc.match('#Noun (was|were|has been|have been) #Verb').length;
     
-    // Check for repetitive structures
     const uniqueWords = new Set(doc.terms().out('array')).size;
     const repetitionScore = 1 - (uniqueWords / wordCount);
     
-    // Calculate final score
     const complexityScore = Math.min((avgWordsPerSentence / 20), 1);
     const formalityScore = Math.min((formalWords / sentenceLength) * 2, 1);
     const passiveScore = Math.min((passiveVoice / sentenceLength) * 2, 1);
@@ -74,9 +97,12 @@ const TextAnalysisSection = () => {
     return Math.min(Math.max(finalScore, 0), 1);
   };
 
-  // Text Humanization and Rephrasing with Gemini
   const processTextWithGemini = async (text: string, mode: 'humanize' | 'rephrase'): Promise<string | string[]> => {
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+    if (!geminiKey) {
+      throw new Error('Gemini API key not configured');
+    }
+
+    const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-pro"});
     
     const prompts = {
@@ -108,7 +134,6 @@ const TextAnalysisSection = () => {
     const doc = nlp(text);
     const sentences = doc.sentences().out('array');
     
-    // Extract key phrases using NLP
     for (let sentence of sentences) {
       const words = sentence.split(' ');
       if (words.length >= 5) {
@@ -116,7 +141,7 @@ const TextAnalysisSection = () => {
         const commonality = doc.match(keyPhrase).length;
         phrases.push({
           phrase: keyPhrase,
-          matches: commonality * 100 // Simulate match count based on phrase frequency
+          matches: commonality * 100
         });
       }
     }
@@ -134,9 +159,17 @@ const TextAnalysisSection = () => {
       return;
     }
 
+    if (!geminiKey) {
+      toast({
+        title: "API Key Missing",
+        description: "Gemini API key is not configured. Some features might not work.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
-      // Run all analyses
       const aiScore = getAIScore(text);
       const [humanizedText, rephrasedVersions] = await Promise.all([
         processTextWithGemini(text, 'humanize') as Promise<string>,
