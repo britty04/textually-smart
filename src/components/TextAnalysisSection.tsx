@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { pipeline } from "@huggingface/transformers";
-import natural from 'natural';
 
 const TextAnalysisSection = () => {
   const [text, setText] = useState("");
@@ -50,6 +49,63 @@ const TextAnalysisSection = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Simple text analysis functions
+  const getAIScore = (text: string): number => {
+    // Basic heuristics for AI detection
+    const patterns = [
+      /\b(therefore|thus|hence|consequently)\b/gi,
+      /\b(furthermore|moreover|additionally)\b/gi,
+      /\b(however|nevertheless|nonetheless)\b/gi,
+      /\b(in conclusion|to summarize|in summary)\b/gi
+    ];
+    
+    const matches = patterns.reduce((count, pattern) => {
+      const matches = text.match(pattern);
+      return count + (matches ? matches.length : 0);
+    }, 0);
+    
+    // Normalize score between 0 and 1
+    return Math.min(matches / 5, 1);
+  };
+
+  const humanizeText = (text: string): string => {
+    const sentences = text.split(/[.!?]+/).filter(Boolean);
+    return sentences.map(sentence => {
+      // Simple transformations
+      return sentence
+        .trim()
+        .replace(/\b(utilize)\b/g, 'use')
+        .replace(/\b(implement)\b/g, 'use')
+        .replace(/\b(facilitate)\b/g, 'help')
+        .replace(/\b(leverage)\b/g, 'use');
+    }).join('. ') + '.';
+  };
+
+  const findPlagiarismPhrases = (text: string): string[] => {
+    const words = text.split(/\s+/);
+    const phrases: string[] = [];
+    
+    // Create 3-word phrases
+    for (let i = 0; i < words.length - 2; i++) {
+      phrases.push(words.slice(i, i + 3).join(' '));
+    }
+    
+    return phrases.slice(0, 5); // Return top 5 phrases
+  };
+
+  const rephraseText = (text: string): string[] => {
+    const sentences = text.split(/[.!?]+/).filter(Boolean);
+    return sentences.map(sentence => {
+      // Simple rephrasing by moving words around
+      const words = sentence.trim().split(/\s+/);
+      if (words.length > 3) {
+        // Move the first word to the end
+        words.push(words.shift() as string);
+      }
+      return words.join(' ');
+    });
+  };
+
   const analyzeText = async () => {
     if (!text.trim()) {
       toast({
@@ -63,60 +119,21 @@ const TextAnalysisSection = () => {
     setIsAnalyzing(true);
     try {
       // AI Detection
-      const classifier = await pipeline("text-classification", "onnx-community/bert-base-cased");
-      const aiResult = await classifier(text);
-      // Extract score from the first result based on pipeline output structure
-      let aiScore = 0;
-      if (Array.isArray(aiResult)) {
-        const firstResult = aiResult[0] as { [key: string]: any };
-        aiScore = firstResult?.sequence?.score || 0;
-      }
+      const aiScore = getAIScore(text);
 
-      // Text Humanization using Natural.js
-      const tokenizer = new natural.WordTokenizer();
-      const tokens = tokenizer.tokenize(text);
-      
-      // Initialize WordNet
-      const wordnet = new natural.WordNet();
-      
-      // Process tokens with proper WordNet lookup
-      const humanizedTokens = await Promise.all(
-        tokens.map(async (token) => {
-          try {
-            const results = await new Promise((resolve) => {
-              wordnet.lookup(token, (results) => {
-                resolve(results);
-              });
-            });
-            const synonyms = (results as any[])
-              ?.flatMap((r: any) => r.synonyms || [])
-              ?.filter((s: string) => s !== token) || [];
-            return synonyms.length > 0 ? synonyms[0] : token;
-          } catch {
-            return token;
-          }
-        })
-      );
+      // Text Humanization
+      const humanizedText = humanizeText(text);
 
-      const humanized = humanizedTokens.join(' ');
+      // Plagiarism Check
+      const plagiarismResults = findPlagiarismPhrases(text);
 
-      // Basic Plagiarism Check with proper NGrams parameters
-      const words = text.split(' ');
-      const keywords = natural.NGrams.ngrams(words, 3, '', '')
-        .map(ngram => ngram.join(' '));
-
-      // Rephrasing using different sentence structures
-      const sentenceTokenizer = new natural.SentenceTokenizer();
-      const sentences = sentenceTokenizer.tokenize(text);
-      const rephrasedVersions = sentences.map(sentence => {
-        const words = tokenizer.tokenize(sentence);
-        return words.reverse().join(' '); // Simple reversal for demo
-      });
+      // Rephrasing
+      const rephrasedVersions = rephraseText(text);
 
       setResults({
         aiScore,
-        humanizedText: humanized,
-        plagiarismResults: keywords,
+        humanizedText,
+        plagiarismResults,
         rephrasedVersions,
       });
 
