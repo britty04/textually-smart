@@ -20,7 +20,7 @@ const TextAnalysisSection = () => {
   const [results, setResults] = useState<{
     aiScore?: number;
     humanizedText?: string;
-    plagiarismResults?: any[];
+    plagiarismResults?: string[];
     rephrasedVersions?: string[];
   }>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -65,23 +65,44 @@ const TextAnalysisSection = () => {
       // AI Detection
       const classifier = await pipeline("text-classification", "onnx-community/bert-base-cased");
       const aiResult = await classifier(text);
-      const aiScore = aiResult[0].score;
+      // Extract score from the first result's label score
+      const aiScore = Array.isArray(aiResult) ? aiResult[0]?.label === "LABEL_1" ? aiResult[0]?.score : 0 : 0;
 
       // Text Humanization using Natural.js
       const tokenizer = new natural.WordTokenizer();
       const tokens = tokenizer.tokenize(text);
-      const humanized = tokens.map(token => {
-        // Simple synonym replacement using WordNet
-        const synonyms = natural.WordNet.lookupSynonyms(token);
-        return synonyms.length > 0 ? synonyms[0] : token;
-      }).join(' ');
+      
+      // Initialize WordNet
+      const wordnet = new natural.WordNet();
+      
+      // Process tokens with proper WordNet lookup
+      const humanizedTokens = await Promise.all(
+        tokens.map(async (token) => {
+          try {
+            const results = await new Promise((resolve) => {
+              wordnet.lookup(token, (results) => {
+                resolve(results);
+              });
+            });
+            const synonyms = (results as any[])
+              ?.flatMap((r: any) => r.synonyms || [])
+              ?.filter((s: string) => s !== token) || [];
+            return synonyms.length > 0 ? synonyms[0] : token;
+          } catch {
+            return token;
+          }
+        })
+      );
 
-      // Basic Plagiarism Check (keyword matching)
-      const keywords = natural.NGrams.ngrams(text.toLowerCase(), 3)
+      const humanized = humanizedTokens.join(' ');
+
+      // Basic Plagiarism Check with proper NGrams parameters
+      const keywords = natural.NGrams.ngrams(text.split(' '), 3)
         .map(ngram => ngram.join(' '));
 
       // Rephrasing using different sentence structures
-      const sentences = new natural.SentenceTokenizer().tokenize(text);
+      const sentenceTokenizer = new natural.SentenceTokenizer();
+      const sentences = sentenceTokenizer.tokenize(text);
       const rephrasedVersions = sentences.map(sentence => {
         const words = tokenizer.tokenize(sentence);
         return words.reverse().join(' '); // Simple reversal for demo
@@ -99,6 +120,7 @@ const TextAnalysisSection = () => {
         description: "Text has been successfully analyzed!",
       });
     } catch (error) {
+      console.error("Analysis error:", error);
       toast({
         title: "Analysis Error",
         description: "An error occurred during analysis. Please try again.",
