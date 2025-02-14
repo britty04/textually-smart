@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, RefreshCcw, Wand2, Upload, Download } from "lucide-react";
+import { AlertCircle, RefreshCcw, Wand2, Upload, Download, Key } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -14,11 +14,23 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import nlp from 'compromise';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+const LOCAL_STORAGE_KEY = "gemini_api_key";
 
 const TextAnalysisSection = () => {
   const [text, setText] = useState("");
-  const [geminiKey, setGeminiKey] = useState<string>("");
+  const [geminiKey, setGeminiKey] = useState<string>(() => 
+    localStorage.getItem(LOCAL_STORAGE_KEY) || ""
+  );
+  const [newApiKey, setNewApiKey] = useState("");
   const [results, setResults] = useState<{
     aiScore?: number;
     humanizedText?: string;
@@ -28,38 +40,24 @@ const TextAnalysisSection = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchGeminiKey = async () => {
-      const { data, error } = await supabase
-        .from('secrets')
-        .select('value')
-        .eq('name', 'GEMINI_API_KEY')
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching Gemini API key:', error);
-        toast({
-          title: "Configuration Error",
-          description: "Could not load API configuration. Some features might not work.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (!data) {
-        toast({
-          title: "API Key Missing",
-          description: "Gemini API key is not configured. Some features might not work.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setGeminiKey(data.value);
-    };
+  const saveApiKey = () => {
+    if (!newApiKey.trim()) {
+      toast({
+        title: "Invalid API Key",
+        description: "Please enter a valid API key",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    fetchGeminiKey();
-  }, []);
+    localStorage.setItem(LOCAL_STORAGE_KEY, newApiKey.trim());
+    setGeminiKey(newApiKey.trim());
+    setNewApiKey("");
+    toast({
+      title: "Success",
+      description: "API key has been saved",
+    });
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -170,7 +168,7 @@ const TextAnalysisSection = () => {
     if (!geminiKey) {
       toast({
         title: "API Key Missing",
-        description: "Gemini API key is not configured. Some features might not work.",
+        description: "Please configure your Gemini API key first.",
         variant: "destructive",
       });
       return;
@@ -209,28 +207,67 @@ const TextAnalysisSection = () => {
 
   return (
     <Card className="w-full max-w-4xl p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100">
-      <div className="flex justify-end mb-4">
-        <label className="cursor-pointer">
-          <input
-            type="file"
-            accept=".txt"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button variant="ghost" size="icon" asChild>
-            <span>
-              <Upload className="w-4 h-4" />
-            </span>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept=".txt"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button variant="ghost" size="icon" asChild>
+              <span>
+                <Upload className="w-4 h-4" />
+              </span>
+            </Button>
+          </label>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleDownload}
+            disabled={!text}
+          >
+            <Download className="w-4 h-4" />
           </Button>
-        </label>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={handleDownload}
-          disabled={!text}
-        >
-          <Download className="w-4 h-4" />
-        </Button>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Key className="w-4 h-4" />
+              Configure API Key
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Configure Gemini API Key</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Enter your Gemini API key"
+                  value={newApiKey}
+                  onChange={(e) => setNewApiKey(e.target.value)}
+                />
+              </div>
+              <Button onClick={saveApiKey} className="w-full">
+                Save API Key
+              </Button>
+              <p className="text-sm text-muted-foreground mt-2">
+                Get your API key from{" "}
+                <a
+                  href="https://makersuite.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary underline"
+                >
+                  Google AI Studio
+                </a>
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Tabs defaultValue="detect" className="w-full">
