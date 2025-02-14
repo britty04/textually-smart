@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,7 @@ const TextAnalysisSection = () => {
 
   useEffect(() => {
     const fetchGeminiKey = async () => {
-      const { data: { GEMINI_API_KEY }, error } = await supabase
+      const { data, error } = await supabase
         .from('secrets')
         .select('value')
         .eq('name', 'GEMINI_API_KEY')
@@ -45,8 +46,8 @@ const TextAnalysisSection = () => {
         return;
       }
       
-      if (GEMINI_API_KEY) {
-        setGeminiKey(GEMINI_API_KEY);
+      if (data && data.value) {
+        setGeminiKey(data.value);
       }
     };
 
