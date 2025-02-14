@@ -34,7 +34,7 @@ const TextAnalysisSection = () => {
         .from('secrets')
         .select('value')
         .eq('name', 'GEMINI_API_KEY')
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching Gemini API key:', error);
@@ -46,9 +46,16 @@ const TextAnalysisSection = () => {
         return;
       }
       
-      if (data && data.value) {
-        setGeminiKey(data.value);
+      if (!data) {
+        toast({
+          title: "API Key Missing",
+          description: "Gemini API key is not configured. Some features might not work.",
+          variant: "destructive",
+        });
+        return;
       }
+      
+      setGeminiKey(data.value);
     };
 
     fetchGeminiKey();
