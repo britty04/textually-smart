@@ -11,7 +11,7 @@ interface HumanizedTextCardProps {
 const HumanizedTextCard = ({ text, onCopy }: HumanizedTextCardProps) => {
   return (
     <Card className="p-4">
-      <div className="flex justify-between items-center mb-2">
+      <div className="flex justify-between items-center mb-4">
         <h4 className="font-medium">Humanized Text</h4>
         {text && onCopy && (
           <Button
@@ -26,10 +26,12 @@ const HumanizedTextCard = ({ text, onCopy }: HumanizedTextCardProps) => {
         )}
       </div>
       {text ? (
-        <p className="text-sm whitespace-pre-wrap">{text}</p>
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+          <p className="text-sm whitespace-pre-wrap leading-relaxed">{text}</p>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Click "Analyze Humanize" to get your humanized version.
+          Select a writing style and click "Analyze Humanize" to get your humanized version.
         </p>
       )}
     </Card>

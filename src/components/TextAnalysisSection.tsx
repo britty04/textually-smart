@@ -135,6 +135,7 @@ const TextAnalysisSection = () => {
         title: "Empty Text",
         description: "Please enter some text to analyze.",
         variant: "destructive",
+        className: "rounded-lg border-2 border-red-200",
       });
       return;
     }
@@ -145,6 +146,7 @@ const TextAnalysisSection = () => {
         title: "Text too long",
         description: `Please limit your text to ${MAX_WORDS} words. Current: ${wordCount} words.`,
         variant: "destructive",
+        className: "rounded-lg border-2 border-red-200",
       });
       return;
     }
@@ -159,20 +161,24 @@ const TextAnalysisSection = () => {
           setImprovementScore(Math.min(100, (1 - newResults.aiScore) * 100));
           break;
         case "humanize":
-          newResults.humanizedText = await processTextWithGemini(text, 'humanize') as string;
+          const prompt = `Please humanize this text to sound more natural and ${selectedStyle}, while maintaining the core message: "${text}"`;
+          newResults.humanizedText = await processTextWithGemini(prompt, 'humanize') as string;
           break;
         case "plagiarism":
           newResults.plagiarismResults = findPlagiarismPhrases(text);
           break;
         case "rephrase":
-          newResults.rephrasedVersions = await processTextWithGemini(text, 'rephrase') as string[];
+          const rephrasePrompt = `Please rephrase this text in a ${selectedStyle} style, maintaining its core meaning: "${text}"`;
+          const rephrased = await processTextWithGemini(rephrasePrompt, 'rephrase') as string;
+          newResults.rephrasedVersions = [rephrased];
           break;
       }
 
       setResults(newResults);
       toast({
-        title: "Analysis Complete",
-        description: `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} analysis completed successfully!`,
+        title: "Success!",
+        description: `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} completed successfully!`,
+        className: "rounded-lg border-2 border-green-200 bg-green-50",
       });
     } catch (error) {
       console.error("Analysis error:", error);
@@ -180,6 +186,7 @@ const TextAnalysisSection = () => {
         title: "Analysis Error",
         description: "An error occurred during analysis. Please try again.",
         variant: "destructive",
+        className: "rounded-lg border-2 border-red-200",
       });
     }
     setIsAnalyzing(false);
@@ -202,11 +209,7 @@ const TextAnalysisSection = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Input Section */}
-        <Card 
-          className="p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleDrop}
-        >
+        <Card className="p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100">
           <div className="flex justify-between items-center mb-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold">Input Text</h3>
@@ -249,13 +252,13 @@ const TextAnalysisSection = () => {
           </div>
 
           <div 
-            className="border-2 border-dashed border-gray-200 rounded-lg p-4 mb-4 hover:border-gray-300 transition-colors"
+            className="border-2 border-dashed border-gray-200 rounded-lg p-4 mb-4 hover:border-gray-300 transition-colors bg-white"
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
           >
             <Textarea
               placeholder="Enter or paste your text here, or drag & drop a file..."
-              className="min-h-[400px] text-base border-none p-0 focus-visible:ring-0"
+              className="min-h-[400px] text-base border-none p-0 focus-visible:ring-0 bg-transparent placeholder:text-gray-400"
               value={text}
               onChange={handleTextChange}
             />
@@ -269,7 +272,11 @@ const TextAnalysisSection = () => {
                   <TooltipTrigger asChild>
                     <Button
                       variant={selectedStyle === label.toLowerCase() ? "default" : "outline"}
-                      className="w-full"
+                      className={`w-full transition-all duration-200 ${
+                        selectedStyle === label.toLowerCase() 
+                          ? "bg-blue-500 text-white hover:bg-blue-600"
+                          : "hover:bg-gray-50"
+                      }`}
                       onClick={() => setSelectedStyle(label.toLowerCase())}
                     >
                       <Icon className="w-4 h-4 mr-2" />
@@ -288,18 +295,25 @@ const TextAnalysisSection = () => {
             <Button
               variant="outline"
               onClick={() => setText("")}
-              className="gap-2"
+              className="gap-2 hover:bg-gray-50"
             >
               <RefreshCcw className="w-4 h-4" />
               Clear
             </Button>
             <Button 
               onClick={analyzeText} 
-              className="gap-2"
+              className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
               disabled={isAnalyzing}
             >
               <Wand2 className="w-4 h-4" />
-              {isAnalyzing ? "Analyzing..." : `Analyze ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`}
+              {isAnalyzing ? (
+                <>
+                  <span className="animate-pulse">Analyzing...</span>
+                  <span className="animate-spin ml-2">⚡</span>
+                </>
+              ) : (
+                `Analyze ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`
+              )}
             </Button>
           </div>
         </Card>
@@ -358,6 +372,8 @@ const TextAnalysisSection = () => {
             <li>Try varying your sentence structure for more natural flow</li>
             <li>Use more personal pronouns to sound more conversational</li>
             <li>Include transition words to improve readability</li>
+            <li>Avoid repetitive phrases and sentence structures</li>
+            <li>Use active voice for more engaging content</li>
           </ul>
         </Card>
       )}
