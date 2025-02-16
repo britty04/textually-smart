@@ -1,4 +1,3 @@
-
 import { useState, useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
@@ -21,10 +20,10 @@ import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/util
 import type { AnalysisResults } from "@/types/analysis";
 
 const writingStyles = [
-  { icon: Book, label: "Academic", description: "Scholarly and research-oriented" },
-  { icon: MessageSquare, label: "Casual", description: "Conversational and friendly" },
-  { icon: Newspaper, label: "Professional", description: "Business and formal" },
-  { icon: Sparkles, label: "Creative", description: "Engaging and expressive" },
+  { icon: Book, label: "Academic", description: "Scholarly and research-oriented", color: "blue" },
+  { icon: MessageSquare, label: "Casual", description: "Conversational and friendly", color: "green" },
+  { icon: Newspaper, label: "Professional", description: "Business and formal", color: "purple" },
+  { icon: Sparkles, label: "Creative", description: "Engaging and expressive", color: "pink" },
 ];
 
 const MAX_WORDS = 500;
@@ -161,16 +160,15 @@ const TextAnalysisSection = () => {
           setImprovementScore(Math.min(100, (1 - newResults.aiScore) * 100));
           break;
         case "humanize":
-          const prompt = `Please humanize this text to sound more natural and ${selectedStyle}, while maintaining the core message: "${text}"`;
-          newResults.humanizedText = await processTextWithGemini(prompt, 'humanize') as string;
+          const humanizedText = await processTextWithGemini(text, 'humanize', selectedStyle) as string;
+          newResults.humanizedText = humanizedText;
           break;
         case "plagiarism":
           newResults.plagiarismResults = findPlagiarismPhrases(text);
           break;
         case "rephrase":
-          const rephrasePrompt = `Please rephrase this text in a ${selectedStyle} style, maintaining its core meaning: "${text}"`;
-          const rephrased = await processTextWithGemini(rephrasePrompt, 'rephrase') as string;
-          newResults.rephrasedVersions = [rephrased];
+          const rephrasedText = await processTextWithGemini(text, 'rephrase', selectedStyle) as string;
+          newResults.rephrasedVersions = [rephrasedText];
           break;
       }
 
@@ -266,7 +264,7 @@ const TextAnalysisSection = () => {
 
           {/* Writing Style Selection */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-            {writingStyles.map(({ icon: Icon, label, description }) => (
+            {writingStyles.map(({ icon: Icon, label, description, color }) => (
               <TooltipProvider key={label}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -274,7 +272,7 @@ const TextAnalysisSection = () => {
                       variant={selectedStyle === label.toLowerCase() ? "default" : "outline"}
                       className={`w-full transition-all duration-200 ${
                         selectedStyle === label.toLowerCase() 
-                          ? "bg-blue-500 text-white hover:bg-blue-600"
+                          ? `bg-${color}-500 text-white hover:bg-${color}-600`
                           : "hover:bg-gray-50"
                       }`}
                       onClick={() => setSelectedStyle(label.toLowerCase())}

@@ -25,7 +25,86 @@ export const getAIScore = (text: string): number => {
   return Math.min(Math.max(finalScore, 0), 1);
 };
 
-export const processTextWithGemini = async (text: string, mode: 'humanize' | 'rephrase'): Promise<string | string[]> => {
+const getPromptByStyle = (text: string, style: string, mode: 'humanize' | 'rephrase') => {
+  const prompts = {
+    academic: {
+      humanize: `Transform this text into an academic style while maintaining its core message. Use scholarly language, formal tone, and proper citations where relevant: "${text}"
+
+      Guidelines:
+      - Use academic vocabulary and complex sentence structures
+      - Maintain objective and analytical tone
+      - Include transitional phrases common in academic writing
+      - Focus on clarity and precision`,
+      
+      rephrase: `Rephrase this text in an academic style suitable for scholarly publications:
+      "${text}"
+      
+      Requirements:
+      - Use academic terminology
+      - Employ formal sentence structures
+      - Maintain scholarly tone
+      - Ensure logical flow`
+    },
+    casual: {
+      humanize: `Make this text sound more conversational and friendly while keeping its meaning. Add a warm, approachable tone: "${text}"
+
+      Guidelines:
+      - Use everyday language
+      - Add conversational elements
+      - Keep sentences short and engaging
+      - Make it feel like a friendly chat`,
+      
+      rephrase: `Rephrase this text in a casual, friendly tone that's easy to read:
+      "${text}"
+      
+      Requirements:
+      - Use conversational language
+      - Keep it simple and relatable
+      - Add natural flow
+      - Make it engaging`
+    },
+    professional: {
+      humanize: `Transform this text into a professional business style while maintaining its message. Use clear, concise language suitable for a business context: "${text}"
+
+      Guidelines:
+      - Use business-appropriate vocabulary
+      - Maintain professional tone
+      - Be clear and direct
+      - Focus on actionable content`,
+      
+      rephrase: `Rephrase this text in a professional business style:
+      "${text}"
+      
+      Requirements:
+      - Use business terminology
+      - Keep it concise and clear
+      - Maintain professional tone
+      - Ensure clarity and impact`
+    },
+    creative: {
+      humanize: `Transform this text into a creative, engaging style while keeping its core message. Add descriptive elements and vivid language: "${text}"
+
+      Guidelines:
+      - Use colorful, descriptive language
+      - Add creative elements
+      - Make it engaging and memorable
+      - Include sensory details`,
+      
+      rephrase: `Rephrase this text in a creative, engaging style:
+      "${text}"
+      
+      Requirements:
+      - Use vivid language
+      - Add artistic elements
+      - Make it memorable
+      - Include descriptive details`
+    }
+  };
+
+  return prompts[style as keyof typeof prompts][mode];
+};
+
+export const processTextWithGemini = async (text: string, mode: 'humanize' | 'rephrase', style: string = 'casual'): Promise<string | string[]> => {
   if (!GEMINI_API_KEY) {
     throw new Error('Gemini API key not configured in environment variables');
   }
@@ -33,28 +112,10 @@ export const processTextWithGemini = async (text: string, mode: 'humanize' | 're
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   const model = genAI.getGenerativeModel({ model: "gemini-pro"});
   
-  const prompts = {
-    humanize: `Make this text sound more human and natural, while keeping the same meaning:
-    "${text}"
-    
-    Rules:
-    1. Keep the same information and meaning
-    2. Make it more conversational
-    3. Vary sentence structure
-    4. Use simpler words when possible
-    5. Keep it professional but friendly`,
-    
-    rephrase: `Provide 3 different versions of this text:
-    1. Casual and friendly tone
-    2. Professional and formal tone
-    3. Academic and technical tone
-    
-    Original text: "${text}"`
-  };
-
-  const result = await model.generateContent(prompts[mode]);
+  const prompt = getPromptByStyle(text, style, mode);
+  const result = await model.generateContent(prompt);
   const response = await result.response;
-  return mode === 'rephrase' ? response.text().split('\n\n') : response.text();
+  return response.text();
 };
 
 export const findPlagiarismPhrases = (text: string) => {
