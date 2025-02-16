@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Book, MessageSquare, Newspaper, Sparkles } from "lucide-react";
+import { Book, MessageSquare, Newspaper, Sparkles, Shield, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import InputSection from "./text-analysis/InputSection";
 import ResultsSection from "./text-analysis/ResultsSection";
@@ -179,18 +179,7 @@ const TextAnalysisSection = () => {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <Shield className="w-4 h-4 text-green-500" />
-            <span>We don't store any user data!</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <Users className="w-4 h-4 text-blue-500" />
-            <span>{userCount.toLocaleString()} texts checked today</span>
-          </div>
-        </div>
-      </div>
+      <TrustBadges userCount={userCount} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <InputSection
