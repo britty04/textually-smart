@@ -1,20 +1,20 @@
-
 import { useState } from "react";
-import { Book, MessageSquare, Newspaper, Sparkles, Shield, Users } from "lucide-react";
+import { Book, MessageSquare, Newspaper, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import InputSection from "./text-analysis/InputSection";
 import ResultsSection from "./text-analysis/ResultsSection";
 import WritingTips from "./text-analysis/WritingTips";
+import TrustBadges from "./layout/TrustBadges";
 import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/utils/analysis";
 import type { AnalysisResults, WritingStyle } from "@/types/analysis";
 
 const MAX_WORDS = 500;
 
 const writingStyles: WritingStyle[] = [
-  { icon: Book, label: "Academic", description: "Scholarly and research-oriented", color: "blue" },
-  { icon: MessageSquare, label: "Casual", description: "Conversational and friendly", color: "green" },
-  { icon: Newspaper, label: "Professional", description: "Business and formal", color: "purple" },
-  { icon: Sparkles, label: "Creative", description: "Engaging and expressive", color: "pink" },
+  { icon: Book, label: "Academic", description: "Scholarly and research-oriented writing with formal language", color: "blue" },
+  { icon: MessageSquare, label: "Casual", description: "Friendly and conversational tone for everyday content", color: "green" },
+  { icon: Newspaper, label: "Professional", description: "Business-appropriate content with clear, formal tone", color: "purple" },
+  { icon: Sparkles, label: "Creative", description: "Engaging and expressive writing with vivid language", color: "pink" },
 ];
 
 const TextAnalysisSection = () => {
@@ -110,6 +110,7 @@ const TextAnalysisSection = () => {
         title: "Word limit exceeded",
         description: `Please limit your text to ${MAX_WORDS} words. Current: ${wordCount} words.`,
         variant: "destructive",
+        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
@@ -122,7 +123,7 @@ const TextAnalysisSection = () => {
         title: "Empty Text",
         description: "Please enter some text to analyze.",
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200",
+        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
@@ -133,7 +134,7 @@ const TextAnalysisSection = () => {
         title: "Text too long",
         description: `Please limit your text to ${MAX_WORDS} words. Current: ${wordCount} words.`,
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200",
+        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
