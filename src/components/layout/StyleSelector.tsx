@@ -30,18 +30,18 @@ const StyleSelector = ({ styles, selectedStyle, onSelect }: StyleSelectorProps) 
                   variant={selectedStyle === label.toLowerCase() ? "default" : "outline"}
                   className={`w-full h-full min-h-[48px] transition-all duration-300 ${
                     selectedStyle === label.toLowerCase()
-                      ? `bg-${color}-500 text-white hover:bg-${color}-600 shadow-lg`
-                      : "hover:bg-gray-50 shadow-sm"
+                      ? `from-${color}-500 to-${color}-600 bg-gradient-to-r text-white hover:from-${color}-600 hover:to-${color}-700 shadow-lg`
+                      : "hover:bg-gray-50 text-gray-700 hover:text-gray-900 shadow-sm border-2"
                   }`}
                   onClick={() => onSelect(label.toLowerCase())}
                 >
                   <Icon className="w-4 h-4 mr-2" />
-                  {label}
+                  <span className="font-medium">{label}</span>
                 </Button>
               </motion.div>
             </TooltipTrigger>
-            <TooltipContent className="bg-white/90 backdrop-blur border-none shadow-lg p-3">
-              <p>{description}</p>
+            <TooltipContent side="bottom" className="bg-white/90 backdrop-blur border-none shadow-lg p-3">
+              <p className="text-sm">{description}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
