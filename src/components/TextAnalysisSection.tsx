@@ -1,32 +1,21 @@
-import { useState, useRef } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { AlertCircle, RefreshCcw, Wand2, Upload, Download, Copy, Shield, Users, Sparkles, Book, MessageSquare, Newspaper } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Progress } from "@/components/ui/progress";
-import { useToast } from "@/hooks/use-toast";
-import AIScoreCard from "./analysis/AIScoreCard";
-import HumanizedTextCard from "./analysis/HumanizedTextCard";
-import PlagiarismCard from "./analysis/PlagiarismCard";
-import RephrasedVersionsCard from "./analysis/RephrasedVersionsCard";
-import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/utils/analysis";
-import type { AnalysisResults } from "@/types/analysis";
 
-const writingStyles = [
+import { useState } from "react";
+import { Book, MessageSquare, Newspaper, Sparkles, Shield, Users } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import InputSection from "./text-analysis/InputSection";
+import ResultsSection from "./text-analysis/ResultsSection";
+import WritingTips from "./text-analysis/WritingTips";
+import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/utils/analysis";
+import type { AnalysisResults, WritingStyle } from "@/types/analysis";
+
+const MAX_WORDS = 500;
+
+const writingStyles: WritingStyle[] = [
   { icon: Book, label: "Academic", description: "Scholarly and research-oriented", color: "blue" },
   { icon: MessageSquare, label: "Casual", description: "Conversational and friendly", color: "green" },
   { icon: Newspaper, label: "Professional", description: "Business and formal", color: "purple" },
   { icon: Sparkles, label: "Creative", description: "Engaging and expressive", color: "pink" },
 ];
-
-const MAX_WORDS = 500;
 
 const TextAnalysisSection = () => {
   const [text, setText] = useState("");
@@ -35,9 +24,12 @@ const TextAnalysisSection = () => {
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [improvementScore, setImprovementScore] = useState(0);
   const [activeTab, setActiveTab] = useState("detect");
-  const [userCount] = useState(Math.floor(Math.random() * 5000) + 8000); // Simulated user count
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [userCount] = useState(Math.floor(Math.random() * 5000) + 8000);
   const { toast } = useToast();
+
+  const getWordCount = (text: string) => {
+    return text.trim().split(/\s+/).length;
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -110,10 +102,6 @@ const TextAnalysisSection = () => {
     }
   };
 
-  const getWordCount = (text: string) => {
-    return text.trim().split(/\s+/).length;
-  };
-
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newText = e.target.value;
     const wordCount = getWordCount(newText);
@@ -160,15 +148,13 @@ const TextAnalysisSection = () => {
           setImprovementScore(Math.min(100, (1 - newResults.aiScore) * 100));
           break;
         case "humanize":
-          const humanizedText = await processTextWithGemini(text, 'humanize', selectedStyle) as string;
-          newResults.humanizedText = humanizedText;
+          newResults.humanizedText = await processTextWithGemini(text, 'humanize', selectedStyle) as string;
           break;
         case "plagiarism":
           newResults.plagiarismResults = findPlagiarismPhrases(text);
           break;
         case "rephrase":
-          const rephrasedText = await processTextWithGemini(text, 'rephrase', selectedStyle) as string;
-          newResults.rephrasedVersions = [rephrasedText];
+          newResults.rephrasedVersions = await processTextWithGemini(text, 'rephrase', selectedStyle) as string[];
           break;
       }
 
@@ -206,175 +192,34 @@ const TextAnalysisSection = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Input Section */}
-        <Card className="p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100">
-          <div className="flex justify-between items-center mb-4">
-            <div className="space-y-1">
-              <h3 className="text-lg font-semibold">Input Text</h3>
-              <p className="text-sm text-muted-foreground">
-                Max {MAX_WORDS} words ({getWordCount(text)} used)
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <label className="cursor-pointer">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Button variant="ghost" size="icon" asChild>
-                  <span>
-                    <Upload className="w-4 h-4" />
-                  </span>
-                </Button>
-              </label>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDownload}
-                disabled={!text}
-              >
-                <Download className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleCopy(text)}
-                disabled={!text}
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+        <InputSection
+          text={text}
+          wordCount={getWordCount(text)}
+          maxWords={MAX_WORDS}
+          selectedStyle={selectedStyle}
+          isAnalyzing={isAnalyzing}
+          activeTab={activeTab}
+          writingStyles={writingStyles}
+          onTextChange={handleTextChange}
+          onStyleSelect={setSelectedStyle}
+          onClear={() => setText("")}
+          onAnalyze={analyzeText}
+          onCopy={handleCopy}
+          onFileUpload={handleFileUpload}
+          onDrop={handleDrop}
+          onDownload={handleDownload}
+        />
 
-          <div 
-            className="border-2 border-dashed border-gray-200 rounded-lg p-4 mb-4 hover:border-gray-300 transition-colors bg-white"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={handleDrop}
-          >
-            <Textarea
-              placeholder="Enter or paste your text here, or drag & drop a file..."
-              className="min-h-[400px] text-base border-none p-0 focus-visible:ring-0 bg-transparent placeholder:text-gray-400"
-              value={text}
-              onChange={handleTextChange}
-            />
-          </div>
-
-          {/* Writing Style Selection */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-            {writingStyles.map(({ icon: Icon, label, description, color }) => (
-              <TooltipProvider key={label}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={selectedStyle === label.toLowerCase() ? "default" : "outline"}
-                      className={`w-full transition-all duration-200 ${
-                        selectedStyle === label.toLowerCase() 
-                          ? `bg-${color}-500 text-white hover:bg-${color}-600`
-                          : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => setSelectedStyle(label.toLowerCase())}
-                    >
-                      <Icon className="w-4 h-4 mr-2" />
-                      {label}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{description}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            ))}
-          </div>
-
-          <div className="flex justify-end gap-4">
-            <Button
-              variant="outline"
-              onClick={() => setText("")}
-              className="gap-2 hover:bg-gray-50"
-            >
-              <RefreshCcw className="w-4 h-4" />
-              Clear
-            </Button>
-            <Button 
-              onClick={analyzeText} 
-              className="gap-2 bg-blue-500 hover:bg-blue-600 text-white"
-              disabled={isAnalyzing}
-            >
-              <Wand2 className="w-4 h-4" />
-              {isAnalyzing ? (
-                <>
-                  <span className="animate-pulse">Analyzing...</span>
-                  <span className="animate-spin ml-2">⚡</span>
-                </>
-              ) : (
-                `Analyze ${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`
-              )}
-            </Button>
-          </div>
-        </Card>
-
-        {/* Results Section */}
-        <Card className="p-6 bg-white/80 backdrop-blur shadow-lg border border-gray-100">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="detect">AI Detection</TabsTrigger>
-              <TabsTrigger value="humanize">Humanize</TabsTrigger>
-              <TabsTrigger value="plagiarism">Plagiarism</TabsTrigger>
-              <TabsTrigger value="rephrase">Rephrase</TabsTrigger>
-            </TabsList>
-
-            {/* Progress Section */}
-            {results.aiScore !== undefined && activeTab === "detect" && (
-              <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Improvement Score</span>
-                  <span className="text-sm font-medium">{improvementScore.toFixed(1)}%</span>
-                </div>
-                <Progress value={improvementScore} className="h-2" />
-              </div>
-            )}
-
-            <TabsContent value="detect" className="mt-6">
-              <AIScoreCard score={results.aiScore} />
-            </TabsContent>
-
-            <TabsContent value="humanize" className="mt-6">
-              <HumanizedTextCard 
-                text={results.humanizedText} 
-                onCopy={handleCopy}
-              />
-            </TabsContent>
-
-            <TabsContent value="plagiarism" className="mt-6">
-              <PlagiarismCard results={results.plagiarismResults} />
-            </TabsContent>
-
-            <TabsContent value="rephrase" className="mt-6">
-              <RephrasedVersionsCard 
-                versions={results.rephrasedVersions}
-                onCopy={handleCopy}
-              />
-            </TabsContent>
-          </Tabs>
-        </Card>
+        <ResultsSection
+          activeTab={activeTab}
+          results={results}
+          improvementScore={improvementScore}
+          onTabChange={setActiveTab}
+          onCopy={handleCopy}
+        />
       </div>
 
-      {/* Writing Tips */}
-      {results.aiScore !== undefined && (
-        <Card className="mt-6 p-4 bg-blue-50 border-blue-100">
-          <h4 className="font-medium mb-2">Writing Tips</h4>
-          <ul className="list-disc list-inside text-sm space-y-2">
-            <li>Try varying your sentence structure for more natural flow</li>
-            <li>Use more personal pronouns to sound more conversational</li>
-            <li>Include transition words to improve readability</li>
-            <li>Avoid repetitive phrases and sentence structures</li>
-            <li>Use active voice for more engaging content</li>
-          </ul>
-        </Card>
-      )}
+      {results.aiScore !== undefined && <WritingTips />}
     </div>
   );
 };
