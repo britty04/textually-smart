@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { Book, MessageSquare, Newspaper, Sparkles, Shield, Users } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Book, MessageSquare, Newspaper, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import InputSection from "./text-analysis/InputSection";
 import ResultsSection from "./text-analysis/ResultsSection";
 import WritingTips from "./text-analysis/WritingTips";
 import TrustBadges from "./layout/TrustBadges";
+import SettingsBar from "./layout/SettingsBar";
+import SideBySideView from "./text-analysis/SideBySideView";
+import SmartSynonyms from "./text-analysis/SmartSynonyms";
 import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/utils/analysis";
 import type { AnalysisResults, WritingStyle } from "@/types/analysis";
 
@@ -25,11 +28,38 @@ const TextAnalysisSection = () => {
   const [improvementScore, setImprovementScore] = useState(0);
   const [activeTab, setActiveTab] = useState("detect");
   const [userCount] = useState(Math.floor(Math.random() * 5000) + 8000);
+  const [isSideBySide, setIsSideBySide] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("english");
+  const [selectedWord, setSelectedWord] = useState("");
+  const [synonyms, setSynonyms] = useState<string[]>([]);
   const { toast } = useToast();
 
   const getWordCount = (text: string) => {
     return text.trim().split(/\s+/).length;
   };
+
+  const handleWordClick = useCallback((word: string) => {
+    setSelectedWord(word);
+    setSynonyms([
+      "alternative1",
+      "alternative2",
+      "alternative3",
+      "alternative4",
+    ]);
+  }, []);
+
+  const handleSynonymSelect = useCallback((synonym: string) => {
+    const newText = text.replace(selectedWord, synonym);
+    setText(newText);
+    setSelectedWord("");
+    setSynonyms([]);
+    
+    toast({
+      title: "Word replaced",
+      description: `Changed "${selectedWord}" to "${synonym}"`,
+      className: "bg-green-50 border-green-200",
+    });
+  }, [text, selectedWord, toast]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -180,34 +210,57 @@ const TextAnalysisSection = () => {
   return (
     <div className="max-w-6xl mx-auto">
       <TrustBadges userCount={userCount} />
+      
+      <SettingsBar
+        onToggleSideBySide={() => setIsSideBySide(!isSideBySide)}
+        isSideBySide={isSideBySide}
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={setSelectedLanguage}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <InputSection
-          text={text}
-          wordCount={getWordCount(text)}
-          maxWords={MAX_WORDS}
-          selectedStyle={selectedStyle}
-          isAnalyzing={isAnalyzing}
-          activeTab={activeTab}
-          writingStyles={writingStyles}
-          onTextChange={handleTextChange}
-          onStyleSelect={setSelectedStyle}
-          onClear={() => setText("")}
-          onAnalyze={analyzeText}
-          onCopy={handleCopy}
-          onFileUpload={handleFileUpload}
-          onDrop={handleDrop}
-          onDownload={handleDownload}
+      {isSideBySide && results.humanizedText ? (
+        <SideBySideView
+          originalText={text}
+          humanizedText={results.humanizedText}
+          changedWords={[]} // This would be populated with actual changed words
         />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <InputSection
+            text={text}
+            wordCount={getWordCount(text)}
+            maxWords={MAX_WORDS}
+            selectedStyle={selectedStyle}
+            isAnalyzing={isAnalyzing}
+            activeTab={activeTab}
+            writingStyles={writingStyles}
+            onTextChange={handleTextChange}
+            onStyleSelect={setSelectedStyle}
+            onClear={() => setText("")}
+            onAnalyze={analyzeText}
+            onCopy={handleCopy}
+            onFileUpload={handleFileUpload}
+            onDrop={handleDrop}
+            onDownload={handleDownload}
+          />
 
-        <ResultsSection
-          activeTab={activeTab}
-          results={results}
-          improvementScore={improvementScore}
-          onTabChange={setActiveTab}
-          onCopy={handleCopy}
+          <ResultsSection
+            activeTab={activeTab}
+            results={results}
+            improvementScore={improvementScore}
+            onTabChange={setActiveTab}
+            onCopy={handleCopy}
+          />
+        </div>
+      )}
+
+      {selectedWord && (
+        <SmartSynonyms
+          word={selectedWord}
+          synonyms={synonyms}
+          onSelect={handleSynonymSelect}
         />
-      </div>
+      )}
 
       {results.aiScore !== undefined && <WritingTips />}
     </div>
