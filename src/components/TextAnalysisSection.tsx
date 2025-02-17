@@ -1,11 +1,9 @@
+
 import { useState, useCallback } from "react";
 import { Book, MessageSquare, Newspaper, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import InputSection from "./text-analysis/InputSection";
 import ResultsSection from "./text-analysis/ResultsSection";
-import WritingTips from "./text-analysis/WritingTips";
-import TrustBadges from "./layout/TrustBadges";
-import SettingsBar from "./layout/SettingsBar";
 import SideBySideView from "./text-analysis/SideBySideView";
 import SmartSynonyms from "./text-analysis/SmartSynonyms";
 import { getAIScore, processTextWithGemini, findPlagiarismPhrases } from "@/utils/analysis";
@@ -27,16 +25,13 @@ const TextAnalysisSection = () => {
   const [selectedStyle, setSelectedStyle] = useState("casual");
   const [improvementScore, setImprovementScore] = useState(0);
   const [activeTab, setActiveTab] = useState("detect");
-  const [userCount] = useState(Math.floor(Math.random() * 5000) + 8000);
   const [isSideBySide, setIsSideBySide] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("english");
   const [selectedWord, setSelectedWord] = useState("");
   const [synonyms, setSynonyms] = useState<string[]>([]);
   const { toast } = useToast();
 
-  const getWordCount = (text: string) => {
-    return text.trim().split(/\s+/).length;
-  };
+  const getWordCount = (text: string) => text.trim().split(/\s+/).length;
+  const getCharCount = (text: string) => text.length;
 
   const handleWordClick = useCallback((word: string) => {
     setSelectedWord(word);
@@ -109,7 +104,7 @@ const TextAnalysisSection = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "analysis-result.txt";
+    a.download = "humanized-text.txt";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -140,11 +135,16 @@ const TextAnalysisSection = () => {
         title: "Word limit exceeded",
         description: `Please limit your text to ${MAX_WORDS} words. Current: ${wordCount} words.`,
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
     setText(newText);
+
+    // Update AI score in real-time
+    if (newText.trim()) {
+      const aiScore = getAIScore(newText);
+      setResults(prev => ({ ...prev, aiScore }));
+    }
   };
 
   const analyzeText = async () => {
@@ -153,7 +153,6 @@ const TextAnalysisSection = () => {
         title: "Empty Text",
         description: "Please enter some text to analyze.",
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
@@ -164,7 +163,6 @@ const TextAnalysisSection = () => {
         title: "Text too long",
         description: `Please limit your text to ${MAX_WORDS} words. Current: ${wordCount} words.`,
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200 bg-white/90 backdrop-blur shadow-lg",
       });
       return;
     }
@@ -193,7 +191,6 @@ const TextAnalysisSection = () => {
       toast({
         title: "Success!",
         description: `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} completed successfully!`,
-        className: "rounded-lg border-2 border-green-200 bg-green-50",
       });
     } catch (error) {
       console.error("Analysis error:", error);
@@ -201,22 +198,21 @@ const TextAnalysisSection = () => {
         title: "Analysis Error",
         description: "An error occurred during analysis. Please try again.",
         variant: "destructive",
-        className: "rounded-lg border-2 border-red-200",
       });
     }
     setIsAnalyzing(false);
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <TrustBadges userCount={userCount} />
-      
-      <SettingsBar
-        onToggleSideBySide={() => setIsSideBySide(!isSideBySide)}
-        isSideBySide={isSideBySide}
-        selectedLanguage={selectedLanguage}
-        onLanguageChange={setSelectedLanguage}
-      />
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex justify-end gap-4">
+        <button
+          onClick={() => setIsSideBySide(!isSideBySide)}
+          className="text-sm text-gray-600 hover:text-gray-900"
+        >
+          {isSideBySide ? "Switch to Tab View" : "Switch to Side-by-Side"}
+        </button>
+      </div>
 
       {isSideBySide && results.humanizedText ? (
         <SideBySideView
@@ -229,6 +225,7 @@ const TextAnalysisSection = () => {
           <InputSection
             text={text}
             wordCount={getWordCount(text)}
+            charCount={getCharCount(text)}
             maxWords={MAX_WORDS}
             selectedStyle={selectedStyle}
             isAnalyzing={isAnalyzing}
@@ -261,8 +258,6 @@ const TextAnalysisSection = () => {
           onSelect={handleSynonymSelect}
         />
       )}
-
-      {results.aiScore !== undefined && <WritingTips />}
     </div>
   );
 };
