@@ -12,6 +12,7 @@ import type { WritingStyle } from "@/types/analysis";
 interface InputSectionProps {
   text: string;
   wordCount: number;
+  charCount: number; // Added this prop
   maxWords: number;
   selectedStyle: string;
   isAnalyzing: boolean;
@@ -30,6 +31,7 @@ interface InputSectionProps {
 const InputSection = ({
   text,
   wordCount,
+  charCount, // Added this prop
   maxWords,
   selectedStyle,
   isAnalyzing,
@@ -77,9 +79,11 @@ const InputSection = ({
             <h3 className="text-lg font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Input Text
             </h3>
-            <p className="text-sm text-muted-foreground">
-              Max {maxWords} words ({wordCount} used)
-            </p>
+            <div className="text-sm text-muted-foreground space-x-3">
+              <span>{wordCount}/{maxWords} words</span>
+              <span>•</span>
+              <span>{charCount} characters</span>
+            </div>
           </div>
           
           {/* Text Formatting Tools */}
