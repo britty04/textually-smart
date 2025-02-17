@@ -47,8 +47,7 @@ const AIScoreCard = ({
               </div>
               <Progress 
                 value={score * 100} 
-                className="h-2"
-                indicatorClassName={getProgressColor(score)}
+                className={`h-2 ${getProgressColor(score)}`}
               />
             </>
           ) : (
@@ -64,14 +63,14 @@ const AIScoreCard = ({
               <h5 className="text-sm font-medium mb-1">Readability Score</h5>
               <Progress 
                 value={readabilityScore ? readabilityScore * 100 : 0}
-                className="h-2"
+                className="h-2 bg-blue-500"
               />
             </div>
             <div>
               <h5 className="text-sm font-medium mb-1">Clarity Score</h5>
               <Progress 
                 value={clarityScore ? clarityScore * 100 : 0}
-                className="h-2"
+                className="h-2 bg-purple-500"
               />
             </div>
           </div>
