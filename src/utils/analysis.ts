@@ -109,13 +109,18 @@ export const processTextWithGemini = async (text: string, mode: 'humanize' | 're
     throw new Error('Gemini API key not configured in environment variables');
   }
 
-  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-  const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-  
-  const prompt = getPromptByStyle(text, style, mode);
-  const result = await model.generateContent(prompt);
-  const response = await result.response;
-  return response.text();
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: "gemini-pro"});
+    
+    const prompt = getPromptByStyle(text, style, mode);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    return response.text();
+  } catch (error) {
+    console.error('Error processing with Gemini:', error);
+    throw error;
+  }
 };
 
 export const findPlagiarismPhrases = (text: string) => {

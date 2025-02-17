@@ -48,6 +48,23 @@ const InputSection = ({
   const [isDragging, setIsDragging] = useState(false);
   const [humanizationStrength, setHumanizationStrength] = useState(50);
 
+  const getAnalyzeButtonText = () => {
+    if (isAnalyzing) return "Analyzing...";
+    
+    switch (activeTab) {
+      case "detect":
+        return "Analyze AI Content";
+      case "humanize":
+        return "Humanize Text";
+      case "plagiarism":
+        return "Check Plagiarism";
+      case "rephrase":
+        return "Rephrase Content";
+      default:
+        return "Analyze";
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -153,31 +170,38 @@ const InputSection = ({
         </motion.div>
 
         <div className="space-y-6">
-          <StyleSelector
-            styles={writingStyles}
-            selectedStyle={selectedStyle}
-            onSelect={onStyleSelect}
-          />
+          {/* Only show StyleSelector for humanize and rephrase tabs */}
+          {(activeTab === "humanize" || activeTab === "rephrase") && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700">Select Writing Style</h4>
+              <StyleSelector
+                styles={writingStyles}
+                selectedStyle={selectedStyle}
+                onSelect={onStyleSelect}
+              />
+            </div>
+          )}
 
-          {/* Humanization Strength Slider */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Humanization Strength</span>
-              <span className="text-sm text-gray-500">{humanizationStrength}%</span>
+          {(activeTab === "humanize" || activeTab === "rephrase") && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Adjustment Strength</span>
+                <span className="text-sm text-gray-500">{humanizationStrength}%</span>
+              </div>
+              <Slider
+                value={[humanizationStrength]}
+                onValueChange={(value) => setHumanizationStrength(value[0])}
+                max={100}
+                step={1}
+                className="py-4"
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Light</span>
+                <span>Moderate</span>
+                <span>Strong</span>
+              </div>
             </div>
-            <Slider
-              value={[humanizationStrength]}
-              onValueChange={(value) => setHumanizationStrength(value[0])}
-              max={100}
-              step={1}
-              className="py-4"
-            />
-            <div className="flex justify-between text-xs text-gray-500">
-              <span>Light</span>
-              <span>Moderate</span>
-              <span>Strong</span>
-            </div>
-          </div>
+          )}
 
           <div className="flex justify-end gap-4">
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -216,7 +240,7 @@ const InputSection = ({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                     >
-                      Analyze {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+                      {getAnalyzeButtonText()}
                     </motion.span>
                   )}
                 </AnimatePresence>
