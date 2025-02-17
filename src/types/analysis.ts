@@ -6,6 +6,9 @@ export interface AnalysisResults {
   humanizedText?: string;
   plagiarismResults?: Array<{ phrase: string; matches: number }>;
   rephrasedVersions?: string[];
+  readabilityScore?: number;
+  clarityScore?: number;
+  suggestions?: string[];
 }
 
 export interface WritingStyle {

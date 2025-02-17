@@ -1,78 +1,99 @@
 
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { AlertCircle } from "lucide-react";
 
 interface AIScoreCardProps {
   score?: number;
+  improvementScore: number;
+  readabilityScore?: number;
+  clarityScore?: number;
+  suggestions?: string[];
 }
 
-const AIScoreCard = ({ score }: AIScoreCardProps) => {
-  if (score === undefined) {
-    return (
-      <Card className="p-4">
-        <h4 className="font-medium mb-2">AI Detection Results</h4>
-        <p className="text-sm text-muted-foreground">
-          Results will appear here after analysis.
-        </p>
-      </Card>
-    );
-  }
-
+const AIScoreCard = ({ 
+  score, 
+  improvementScore,
+  readabilityScore,
+  clarityScore,
+  suggestions
+}: AIScoreCardProps) => {
   const getScoreColor = (score: number) => {
-    if (score > 0.7) return 'text-red-500';
-    if (score > 0.3) return 'text-yellow-500';
-    return 'text-green-500';
+    if (score < 0.3) return "text-green-500";
+    if (score < 0.7) return "text-yellow-500";
+    return "text-red-500";
   };
 
-  const getGradientStyle = (score: number) => {
-    const percentage = score * 100;
-    return {
-      background: `linear-gradient(90deg, 
-        ${score > 0.7 ? '#fecaca' : score > 0.3 ? '#fef3c7' : '#dcfce7'} ${percentage}%, 
-        #f3f4f6 ${percentage}%)`,
-    };
+  const getProgressColor = (score: number) => {
+    if (score < 0.3) return "bg-green-500";
+    if (score < 0.7) return "bg-yellow-500";
+    return "bg-red-500";
   };
 
   return (
-    <div className="space-y-4">
-      <Card className="p-4">
-        <h4 className="font-medium mb-2">AI Detection Results</h4>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span>AI Probability:</span>
-            <span className={`font-bold ${getScoreColor(score)}`}>
-              {(score * 100).toFixed(1)}%
-            </span>
-          </div>
-          <div className="w-full h-6 rounded-full overflow-hidden transition-all duration-500"
-            style={getGradientStyle(score)}>
-          </div>
-          <p className="text-sm mt-2">
-            {score > 0.7 ? 'Highly likely AI-generated' :
-             score > 0.3 ? 'May contain AI-generated content' :
-             'Likely human-written'}
-          </p>
+    <Card className="p-4">
+      <div className="space-y-6">
+        <div>
+          <h4 className="font-medium mb-2">AI Content Score</h4>
+          {score !== undefined ? (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className={`text-2xl font-bold ${getScoreColor(score)}`}>
+                  {Math.round(score * 100)}%
+                </span>
+                <span className="text-sm text-gray-500">
+                  AI Probability
+                </span>
+              </div>
+              <Progress 
+                value={score * 100} 
+                className="h-2"
+                indicatorClassName={getProgressColor(score)}
+              />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Click "Analyze" to check AI probability
+            </p>
+          )}
         </div>
-      </Card>
-      
-      {/* Detailed Analysis */}
-      <Card className="p-4 bg-gray-50">
-        <h4 className="font-medium mb-2">Content Analysis</h4>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span>Natural Flow:</span>
-            <span>{Math.round((1 - score) * 100)}%</span>
+
+        {(readabilityScore !== undefined || clarityScore !== undefined) && (
+          <div className="space-y-4 border-t pt-4">
+            <div>
+              <h5 className="text-sm font-medium mb-1">Readability Score</h5>
+              <Progress 
+                value={readabilityScore ? readabilityScore * 100 : 0}
+                className="h-2"
+              />
+            </div>
+            <div>
+              <h5 className="text-sm font-medium mb-1">Clarity Score</h5>
+              <Progress 
+                value={clarityScore ? clarityScore * 100 : 0}
+                className="h-2"
+              />
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span>Complexity:</span>
-            <span>{Math.round(score * 80)}%</span>
+        )}
+
+        {suggestions && suggestions.length > 0 && (
+          <div className="border-t pt-4">
+            <h5 className="text-sm font-medium mb-2 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-yellow-500" />
+              Improvement Suggestions
+            </h5>
+            <ul className="space-y-2">
+              {suggestions.map((suggestion, index) => (
+                <li key={index} className="text-sm text-gray-600">
+                  • {suggestion}
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="flex justify-between">
-            <span>Authenticity:</span>
-            <span>{Math.round((1 - score) * 90)}%</span>
-          </div>
-        </div>
-      </Card>
-    </div>
+        )}
+      </div>
+    </Card>
   );
 };
 
