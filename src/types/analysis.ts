@@ -9,6 +9,21 @@ export interface AnalysisResults {
   readabilityScore?: number;
   clarityScore?: number;
   suggestions?: string[];
+  toneAnalysis?: {
+    sentiment: 'positive' | 'neutral' | 'negative';
+    score: number;
+  };
+  seoScore?: number;
+  keywordDensity?: {
+    [key: string]: number;
+  };
+  trustScore?: number;
+  modifiedPercentage?: number;
+  versionHistory?: {
+    timestamp: number;
+    text: string;
+    style: string;
+  }[];
 }
 
 export interface WritingStyle {
@@ -16,4 +31,12 @@ export interface WritingStyle {
   label: string;
   description: string;
   color: string;
+  characteristics?: string[];
+}
+
+export interface AIPreferences {
+  toneStrength: number;
+  creativityLevel: number;
+  preserveKeywords: boolean;
+  enhanceSEO: boolean;
 }
